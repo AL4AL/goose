@@ -73,6 +73,16 @@ cd ui/desktop && pnpm run typecheck
 cd ui/desktop && pnpm test   # test UI
 ```
 
+### Linux DEB Package
+```bash
+cargo build --release -p goose-cli --bin goose   # ~10 min; llama-cpp is the slow part
+just copy-binary                                  # copies to ui/desktop/src/bin/goose
+cd ui/desktop && pnpm install && pnpm run make --targets=@electron-forge/maker-deb
+```
+- Output: `ui/desktop/out/make/deb/x64/goose_{version}_amd64.deb`
+- Packaged app: `ui/desktop/out/Goose-linux-x64/Goose` (capital `Goose`, not `goose`)
+- Prerequisites: `dpkg fakeroot build-essential` plus clang builtin headers (see Troubleshooting)
+
 ## Structure
 ```
 crates/       # Rust workspace members — see root Cargo.toml (`members = ["crates/*"]`)
@@ -125,6 +135,13 @@ Some workspace crates, including those that make up the GDK, are published to cr
 - Never: Merge without running clippy
 - Never: Comment self-evident operations (`// Initialize`, `// Return result`), getters/setters, constructors, or standard Rust idioms
 - Never: Overwrite a live binary in place (e.g. `cp`/`fs.copyFileSync` onto an existing executable) - unlink or atomic-rename the destination first, otherwise macOS SIGKILLs running processes with "Code Signature Invalid"
+
+## Troubleshooting
+
+- `llama-cpp-sys-2` build fails with `fatal error: 'stdbool.h' file not found` (bindgen): clang builtin headers are missing. Install `libclang-common-18-dev` — it provides `/usr/lib/llvm-*/lib/clang/*/include` with no version conflicts. The full `clang-18` package may fail to install when `libllvm18`/`libclang1-18` are from a newer `-ubuntu1` revision than the archive's `clang-18` dependency pin; `libclang-common-18-dev` is enough.
+- On this machine `sudo` requires a password and has no TTY: use `pkexec apt-get install ...` for privileged installs.
+- First `source bin/activate-hermit` bootstraps hermit and downloads the pinned rust toolchain; commands can exceed 2-minute timeouts on first run.
+- `BUILDING_LINUX.md` documents the full Linux desktop build for all distros.
 
 ## Entry Points
 - CLI: crates/goose-cli/src/main.rs
